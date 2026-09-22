@@ -27,9 +27,9 @@ bool MyWindow_initialize(MyWindow *window, const char *title, int width, int hei
 void MyWindow_destroy(MyWindow *window);
 void MyImage_destroy(MyImage *image);
 void load_rgba32(const char *filename, SDL_Renderer *renderer, MyImage *output_image);
-void convert_to_grayscale(SDL_Renderer *renderer, MyImage *image);
+bool convert_to_grayscale(SDL_Renderer *renderer, MyImage *image);
 
-void calculate_histogram(MyImage *image, HistogramData *hist);
+bool calculate_histogram(MyImage *image, HistogramData *hist);
 void equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist);
 void save_output_image(SDL_Renderer *renderer, const char *filename);
 

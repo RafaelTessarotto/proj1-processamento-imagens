@@ -42,7 +42,6 @@ static void loop(void) {
                 isRunning = false;
             }
             else if (event.type == SDL_EVENT_KEY_DOWN) {
-                // Ao apertar 1, converte a imagem baseada na fórmula de cinza
                 if (event.key.key == SDLK_1 && !event.key.repeat) {
                     convert_to_grayscale(g_window.renderer, &g_image);
                     mustRefresh = true;
@@ -62,7 +61,6 @@ int main(int argc, char *argv[]) {
 
     if (initialize() == SDL_APP_FAILURE) return SDL_APP_FAILURE;
 
-    // Carrega a imagem original
     load_rgba32(IMAGE_FILENAME, g_window.renderer, &g_image);
 
     loop();

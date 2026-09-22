@@ -41,7 +41,6 @@ void load_rgba32(const char *filename, SDL_Renderer *renderer, MyImage *output_i
     }
 }
 
-// Requisito 2: Conversão para escala de cinza usando a fórmula exigida
 void convert_to_grayscale(SDL_Renderer *renderer, MyImage *image) {
     if (!renderer || !image || !image->surface) return;
 
@@ -54,7 +53,6 @@ void convert_to_grayscale(SDL_Renderer *renderer, MyImage *image) {
     for (size_t i = 0; i < pixelCount; ++i) {
         SDL_GetRGBA(pixels[i], format, NULL, &r, &g, &b, &a);
         
-        // Aplicação da fórmula Y = 0.2125*R + 0.7154*G + 0.0721*B
         Uint8 y = (Uint8)(0.2125 * r + 0.7154 * g + 0.0721 * b);
         
         pixels[i] = SDL_MapRGBA(format, NULL, y, y, y, a);

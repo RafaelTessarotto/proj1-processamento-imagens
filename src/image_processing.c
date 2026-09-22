@@ -1,48 +1,14 @@
-#include "image_processing.h"
+#include <math.h> 
+#include <string.h>
 #include <SDL3_image/SDL_image.h>
 
-bool MyWindow_initialize(MyWindow *window, const char *title, int width, int height, SDL_WindowFlags window_flags) {
-    if (!window) return false;
-    return SDL_CreateWindowAndRenderer(title, width, height, window_flags, &window->window, &window->renderer);
-}
 
-void MyWindow_destroy(MyWindow *window) {
-    if (!window) return;
-    if (window->renderer) SDL_DestroyRenderer(window->renderer);
-    if (window->window) SDL_DestroyWindow(window->window);
-    window->renderer = NULL;
-    window->window = NULL;
-}
+void calculate_histogram(MyImage *image, HistogramData *hist) {
+    if (!image || !image->surface || !hist) return;
 
-void MyImage_destroy(MyImage *image) {
-    if (!image) return;
-    if (image->texture) SDL_DestroyTexture(image->texture);
-    if (image->surface) SDL_DestroySurface(image->surface);
-    image->texture = NULL;
-    image->surface = NULL;
-    image->rect.x = image->rect.y = image->rect.w = image->rect.h = 0.0f;
-}
-
-void load_rgba32(const char *filename, SDL_Renderer *renderer, MyImage *output_image) {
-    if (!filename || !renderer || !output_image) return;
-    MyImage_destroy(output_image);
-
-    SDL_Surface *surface = IMG_Load(filename);
-    if (!surface) return;
-
-    output_image->surface = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA32);
-    SDL_DestroySurface(surface);
-    
-    if (!output_image->surface) return;
-
-    output_image->texture = SDL_CreateTextureFromSurface(renderer, output_image->surface);
-    if (output_image->texture) {
-        SDL_GetTextureSize(output_image->texture, &output_image->rect.w, &output_image->rect.h);
-    }
-}
-
-void convert_to_grayscale(SDL_Renderer *renderer, MyImage *image) {
-    if (!renderer || !image || !image->surface) return;
+    memset(hist->bins, 0, sizeof(hist->bins));
+    hist->mean = 0.0;
+    hist->std_dev = 0.0;
 
     SDL_LockSurface(image->surface);
     const SDL_PixelFormatDetails *format = SDL_GetPixelFormatDetails(image->surface->format);
@@ -50,15 +16,86 @@ void convert_to_grayscale(SDL_Renderer *renderer, MyImage *image) {
     Uint32 *pixels = (Uint32 *)image->surface->pixels;
     
     Uint8 r, g, b, a;
+    double sum = 0.0;
+
+    
     for (size_t i = 0; i < pixelCount; ++i) {
         SDL_GetRGBA(pixels[i], format, NULL, &r, &g, &b, &a);
-        
-        Uint8 y = (Uint8)(0.2125 * r + 0.7154 * g + 0.0721 * b);
-        
-        pixels[i] = SDL_MapRGBA(format, NULL, y, y, y, a);
+        hist->bins[r]++; // Como está em cinza, R=G=B
+        sum += r;
+    }
+    
+    
+    hist->mean = sum / pixelCount;
+    if (hist->mean < 85) strcpy(hist->intensity_class, "escura");
+    else if (hist->mean > 170) strcpy(hist->intensity_class, "clara");
+    else strcpy(hist->intensity_class, "média");
+
+    
+    double variance_sum = 0.0;
+    for (size_t i = 0; i < pixelCount; ++i) {
+        SDL_GetRGBA(pixels[i], format, NULL, &r, &g, &b, &a);
+        variance_sum += pow(r - hist->mean, 2);
+    }
+    hist->std_dev = sqrt(variance_sum / pixelCount);
+
+    if (hist->std_dev < 40) strcpy(hist->contrast_class, "baixo");
+    else if (hist->std_dev > 80) strcpy(hist->contrast_class, "alto");
+    else strcpy(hist->contrast_class, "médio");
+
+    SDL_UnlockSurface(image->surface);
+}
+
+
+void equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist) {
+    if (!renderer || !image || !image->surface || !hist) return;
+
+    const size_t pixelCount = image->surface->w * image->surface->h;
+    
+    
+    float probability[256];
+    float cdf[256];
+    
+    for (int i = 0; i < 256; i++) {
+        probability[i] = (float)hist->bins[i] / pixelCount;
+        if (i == 0) cdf[i] = probability[i];
+        else cdf[i] = cdf[i - 1] + probability[i];
+    }
+
+    SDL_LockSurface(image->surface);
+    const SDL_PixelFormatDetails *format = SDL_GetPixelFormatDetails(image->surface->format);
+    Uint32 *pixels = (Uint32 *)image->surface->pixels;
+    Uint8 r, g, b, a;
+
+    
+    for (size_t i = 0; i < pixelCount; ++i) {
+        SDL_GetRGBA(pixels[i], format, NULL, &r, &g, &b, &a);
+        Uint8 new_val = (Uint8)(round(cdf[r] * 255.0f));
+        pixels[i] = SDL_MapRGBA(format, NULL, new_val, new_val, new_val, a);
     }
     SDL_UnlockSurface(image->surface);
 
+    
     SDL_DestroyTexture(image->texture);
     image->texture = SDL_CreateTextureFromSurface(renderer, image->surface);
+}
+
+
+void save_output_image(SDL_Renderer *renderer, const char *filename) {
+    if (!renderer) return;
+
+    
+    SDL_Surface *surface = SDL_RenderReadPixels(renderer, NULL);
+    if (!surface) {
+        SDL_Log("*** Erro ao ler os pixels para salvar: %s", SDL_GetError());
+        return;
+    }
+
+    if (IMG_SavePNG(surface, filename) == 0) {
+        SDL_Log("Sucesso: Arquivo %s criado/sobrescrito com sucesso.", filename);
+    } else {
+        SDL_Log("*** Erro ao salvar o arquivo %s: %s", filename, SDL_GetError());
+    }
+
+    SDL_DestroySurface(surface);
 }

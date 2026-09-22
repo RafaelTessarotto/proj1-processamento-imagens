@@ -1,10 +1,6 @@
-
 CC = gcc
-
 CFLAGS = -Wall -Wextra -std=c99
-
 LDFLAGS = -lSDL3 -lSDL3_image -lSDL3_ttf -lm
-
 SRC_DIR = src
 SOURCES = $(SRC_DIR)/main.c $(SRC_DIR)/image_processing.c
 OBJECTS = $(SOURCES:.c=.o)

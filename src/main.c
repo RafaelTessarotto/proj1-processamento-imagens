@@ -6,8 +6,6 @@
 #include "image_processing.h"
 
 static const char *WINDOW_TITLE = "Processamento de Imagens - Projeto 1";
-static const char *IMAGE_FILENAME = "kodim23.png";
-
 static MyWindow g_window = { .window = NULL, .renderer = NULL };
 static MyImage g_image = { .surface = NULL, .texture = NULL, .rect = { 0, 0, 0, 0 } };
 
@@ -48,7 +46,6 @@ static void loop(void) {
                 }
             }
         }
-
         if (mustRefresh) {
             render();
             mustRefresh = false;
@@ -59,11 +56,21 @@ static void loop(void) {
 int main(int argc, char *argv[]) {
     atexit(shutdown);
 
+    if (argc < 2) {
+        SDL_Log("*** Erro: Caminho da imagem ausente. Exemplo de uso: ./programa assets/imagem.png");
+        return 1;
+    }
+
     if (initialize() == SDL_APP_FAILURE) return SDL_APP_FAILURE;
 
-    load_rgba32(IMAGE_FILENAME, g_window.renderer, &g_image);
+    const char *image_path = argv[1];
+    load_rgba32(image_path, g_window.renderer, &g_image);
+
+    if (!g_image.surface) {
+        SDL_Log("*** Erro: Não foi possível carregar '%s'.", image_path);
+        return 1;
+    }
 
     loop();
-
     return 0;
 }

@@ -1,3 +1,5 @@
 *.o
 programa
+programa.exe
 output_image.png
+*Zone.Identifier

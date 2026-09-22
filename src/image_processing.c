@@ -237,55 +237,52 @@ bool calculate_histogram(MyImage *image, HistogramData *hist) {
 }
 
 
-void equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist) {
-    if (!renderer || !image || !image->surface || !hist) return;
+bool equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist)
+{
+    if (!renderer || !image || !image->surface || !hist) return false;
 
-    const size_t pixelCount = image->surface->w * image->surface->h;
-    
-    
-    float probability[256];
-    float cdf[256];
-    
-    for (int i = 0; i < 256; i++) {
-        probability[i] = (float)hist->bins[i] / pixelCount;
-        if (i == 0) cdf[i] = probability[i];
-        else cdf[i] = cdf[i - 1] + probability[i];
+    const size_t pixelCount = (size_t)image->surface->w * image->surface->h;
+    if (!pixelCount) return false;
+    double probability[256];
+    double cdf[256];
+    for (int i = 0; i < 256; ++i) {
+        probability[i] = (double)hist->bins[i] / pixelCount;
+        cdf[i] = probability[i] + (i ? cdf[i - 1] : 0);
     }
 
-    SDL_LockSurface(image->surface);
     const SDL_PixelFormatDetails *format = SDL_GetPixelFormatDetails(image->surface->format);
+    if (!format || !SDL_LockSurface(image->surface)) return false;
     Uint32 *pixels = (Uint32 *)image->surface->pixels;
     Uint8 r, g, b, a;
-
-    
     for (size_t i = 0; i < pixelCount; ++i) {
         SDL_GetRGBA(pixels[i], format, NULL, &r, &g, &b, &a);
-        Uint8 new_val = (Uint8)(round(cdf[r] * 255.0f));
+        Uint8 new_val = (Uint8)round(cdf[r] * 255.0);
         pixels[i] = SDL_MapRGBA(format, NULL, new_val, new_val, new_val, a);
     }
     SDL_UnlockSurface(image->surface);
 
-    
+    SDL_Texture *texture = SDL_CreateTextureFromSurface(renderer, image->surface);
+    if (!texture) return false;
     SDL_DestroyTexture(image->texture);
-    image->texture = SDL_CreateTextureFromSurface(renderer, image->surface);
+    image->texture = texture;
+    return true;
 }
 
-
-void save_output_image(SDL_Renderer *renderer, const char *filename) {
-    if (!renderer) return;
-
-    
+bool save_output_image(SDL_Renderer *renderer, const char *filename)
+{
+    if (!renderer || !filename) return false;
+    SDL_PathInfo info;
+    bool existed = SDL_GetPathInfo(filename, &info) && info.type != SDL_PATHTYPE_NONE;
     SDL_Surface *surface = SDL_RenderReadPixels(renderer, NULL);
     if (!surface) {
-        SDL_Log("*** Erro ao ler os pixels para salvar: %s", SDL_GetError());
-        return;
+        SDL_Log("*** Erro ao capturar imagem: %s", SDL_GetError());
+        return false;
     }
-
-    if (IMG_SavePNG(surface, filename)) {
-        SDL_Log("Sucesso: Arquivo %s criado/sobrescrito com sucesso.", filename);
-    } else {
-        SDL_Log("*** Erro ao salvar o arquivo %s: %s", filename, SDL_GetError());
-    }
-
+    bool success = IMG_SavePNG(surface, filename);
+    if (success)
+        SDL_Log("Arquivo %s %s.", filename, existed ? "sobrescrito" : "criado");
+    else
+        SDL_Log("*** Erro ao salvar %s: %s", filename, SDL_GetError());
     SDL_DestroySurface(surface);
+    return success;
 }

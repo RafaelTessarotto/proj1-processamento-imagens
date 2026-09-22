@@ -30,7 +30,7 @@ void load_rgba32(const char *filename, SDL_Renderer *renderer, MyImage *output_i
 bool convert_to_grayscale(SDL_Renderer *renderer, MyImage *image);
 
 bool calculate_histogram(MyImage *image, HistogramData *hist);
-void equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist);
-void save_output_image(SDL_Renderer *renderer, const char *filename);
+bool equalize_histogram(SDL_Renderer *renderer, MyImage *image, HistogramData *hist);
+bool save_output_image(SDL_Renderer *renderer, const char *filename);
 
 #endif
